@@ -16,8 +16,7 @@ from processes.serial import *
 
 class Worker:
 
-    def __init__(self, graph_id=None, samples=500, rate=0.02, port=None):
-        self._graphid = graph_id
+    def __init__(self, samples=500, rate=0.02, port=None):
         self._samples = samples
         self._rate = rate
         self._port = port
@@ -39,12 +38,7 @@ class Worker:
         self._parser = Parser(data=self._queue,
                               samples=self._samples,
                               rate=self._rate)
-        if self._graphid == 2: pass
-            # self._process = RandomSimulator(self._parser)
-        elif self._graphid == 1: pass
-            # self._process = SineSimulator(self._parser)
-        elif self._graphid == 0:
-            self._process = Serial(self._parser)
+        self._process = Serial(self._parser)
         if self._process.check_init(port=self._port, speed=self._rate):
             self._parser.start()
             self._process.start()

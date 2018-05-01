@@ -33,7 +33,7 @@ class PlotManager(QObject):
 
 
     def start(self):
-        self.worker = Worker(graph_id=self.graph_id,samples=self.samples,rate=self.rate,port=self.port)
+        self.worker = Worker(samples=self.samples,rate=self.rate,port=self.port)
         if self.worker.start():
             self.timer_plot.start(20)
 
