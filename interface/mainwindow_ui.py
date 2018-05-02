@@ -28,7 +28,6 @@ class MainWindow(QMainWindow):
         self.add = 0
         self.splot_count = 0
         self.addtopbottom = False
-        self.isReady = False
         self.scan = SerialScan()
         self.clist = [] # Channel list
         self.funcList = []  # Function list
@@ -59,8 +58,7 @@ class MainWindow(QMainWindow):
         self.scan_btn = self.button('Scan Port',self.get_available_port)
         self.run_btn = self.button('Run',self.run_plot)
         self.stop_btn = self.button('Stop',self.serial_stop)
-        self.period = QLabel('0')
-        self.peak = QLabel('0')
+
 
         vertical_menu = QVBoxLayout()
         vertical_menu.setAlignment(Qt.AlignLeft)
@@ -123,24 +121,35 @@ class MainWindow(QMainWindow):
         self.graph_display.setAlignment(Qt.AlignTop)
         self.graph_display.SetFixedSize
 
-        # Statistic box
+        # Legend box
+        self.breathPeriod = QLabel('0')
+        self.respRate = QLabel('0')
+        self.respRate_variability = QLabel('0')
+        self.sleepStage = QLabel('0')
+        self.save_btn = self.button('Save',self.save_data)
+
         statistic = QVBoxLayout()
         statistic.setAlignment(Qt.AlignRight)
         statistic.SetFixedSize
 
-        stat_box = QGroupBox('Plot Information')
+        stat_box = QGroupBox('Legend')
         stat_box.setStyleSheet('font-size: 12pt; color: 606060;')
         stat_form = QFormLayout()
-        stat_form.addRow('Period', self.period)
-        stat_form.addRow('Peak value', self.peak)
+        stat_form.addRow('Breathing Period: ', self.breathPeriod)
+        stat_form.addRow('Respiration Rate (RR): ', self.respRate)
+        stat_form.addRow('RR Variability: ', self.respRate_variability)
+        stat_form.addRow('Sleep Stage: ', self.sleepStage)
+        stat_form.addRow(self.save_btn)
         stat_box.setLayout(stat_form)
-        stat_box.setFixedWidth(self.w/7)
+        stat_box.setFixedWidth(self.w/7+50)
         stat_box.setFixedHeight(self.h)
 
         statistic.addWidget(stat_box)
 
         self.windowLayout.addLayout(vertical_menu)
         self.windowLayout.addLayout(self.graph_display)
+        self.windowLayout.addStretch()
+
         self.windowLayout.addLayout(statistic)
 
         # Get all the serial port available
@@ -181,7 +190,7 @@ class MainWindow(QMainWindow):
             self.clear_clist()
         self.pmanager.setup_serial(self.samples.text(),self.baudrate.text(),currPort)
         if not self.scan.open_port(currPort,self.baudrate.text()):
-            # self.alert('Cannot find a serial port!'
+            # self.alert('Cannot find a serial port!')
             pass
         else:
             line = self.scan.line
@@ -195,6 +204,7 @@ class MainWindow(QMainWindow):
                     self.clist.append(entry)
                     self.channel.addRow(entry)
                     self.pmanager.add_channel(c)
+            self.isClicked = False
 
 
     def serial_stop(self):
@@ -218,13 +228,18 @@ class MainWindow(QMainWindow):
 
     def function_selection(self):
         for f in self.funcList:
-                funcName = f.objectName()
-                if f.isChecked() and funcName not in self.plotDictionary.keys():
-                    plot_widget = GraphUI(self.w*5/7).addgraph(funcName)
-                    self.graph_display.addWidget(plot_widget,self.plot_count, 0, Qt.AlignLeft)
-                    self.plotDictionary.update({funcName: plot_widget})
-                    self.pmanager.update_plotDict(self.plotDictionary)
-                    self.plot_count +=1
+            funcName = f.objectName()
+            if f.isChecked() and funcName not in self.plotDictionary.keys():
+                plot_widget = GraphUI(self.w*5/7,self.h/3).addgraph(funcName)
+                self.graph_display.addWidget(plot_widget,self.plot_count, 0, Qt.AlignLeft)
+                self.plotDictionary.update({funcName: plot_widget})
+                self.pmanager.update_plotDict(self.plotDictionary)
+                self.plot_count +=1
+            elif not f.isChecked() and funcName in self.plotDictionary.keys():
+                self.graph_display.removeWidget(self.plotDictionary[funcName])
+                self.plotDictionary[funcName].deleteLater()
+                del self.plotDictionary[funcName]
+                self.pmanager.update_plotDict(self.plotDictionary)
 
     def channel_display(self):
         if self.clist:
@@ -234,8 +249,30 @@ class MainWindow(QMainWindow):
                 else:
                     self.pmanager.remove_channel(int(c.objectName()))
 
+    def save_data(self):
+        pass
 
+    # User's event handler
     def closeEvent(self, event):
         if self.pmanager.is_running():
             self.pmanager.stop()
         super(MainWindow, self).closeEvent(event)
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.WindowStateChange:
+            # if self.windowState() == Qt.WindowFullScreen:
+            if self.windowState() & Qt.WindowMaximized:
+                screen_resolution = qApp.desktop().screenGeometry()
+                self.w, self.h = screen_resolution.width(), screen_resolution.height()
+                self.resize_plot(self.w*5/7-100,self.h/3)
+            else:
+                self.h = 700
+                self.w = 1300
+                self.resize_plot(self.w*5/7-100,self.h/3)
+
+        super(MainWindow,self).changeEvent(event)
+
+    def resize_plot(self,w,h):
+        for k in self.plotDictionary.keys():
+            self.plotDictionary[k].setFixedWidth(w)
+            self.plotDictionary[k].setFixedHeight(h)

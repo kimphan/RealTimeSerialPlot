@@ -12,7 +12,7 @@ from PyQt5.QtCore import QTimer,QObject
 from manage.worker import Worker
 import numpy as np
 from scipy.signal import correlate,savgol_filter
-from helper.ringBuffer import RingBuffer
+from pyqtgraph.exporters import CSVExporter
 
 class PlotManager(QObject):
     def __init__(self,samples=500, rate=0.02, port=None):
@@ -71,6 +71,7 @@ class PlotManager(QObject):
         self.plotfunc = pf
         print('Manager update')
 
+
     def add_channel(self,c):
         if c not in self.clist:
             self.clist.append(c)
@@ -96,6 +97,9 @@ class PlotManager(QObject):
         # print('x {},y {}'.format(x,y))
         pen = pg.mkPen(self.color_dict[i], width=1, style=None)
         plot_widget.plotItem.plot(x,y, pen=pen)
+
+    def csv_export(self):
+        pass
 
     # Get raw data from sensors and compute
     # Computation: filter raw data using Saviztky-Golay method
