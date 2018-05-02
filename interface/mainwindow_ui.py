@@ -1,10 +1,10 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-from PyQt5.QtCore import Qt, QEvent, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import *
 from interface.graph_ui import GraphUI
 from manage.manager import PlotManager
 from helper.serial_scanner import SerialScan
-from manage.worker import Worker
+from processes.serial import SerialStream
 from functools import partial
 import os, signal,serial
 
@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
     def loadui(self):
         # Widgets
         self.ports_list = QComboBox()
-        self.ports_list.currentTextChanged.connect(self.port_selection)
+        self.ports_list.currentTextChanged.connect(self.selectionChange)
         self.baudrate = QLineEdit()
         self.baudrate.setText('115200')
         self.samples = QLineEdit()
@@ -59,6 +59,8 @@ class MainWindow(QMainWindow):
         self.scan_btn = self.button('Scan Port',self.get_available_port)
         self.run_btn = self.button('Run',self.run_plot)
         self.stop_btn = self.button('Stop',self.serial_stop)
+        self.period = QLabel('0')
+        self.peak = QLabel('0')
 
         vertical_menu = QVBoxLayout()
         vertical_menu.setAlignment(Qt.AlignLeft)
@@ -77,12 +79,11 @@ class MainWindow(QMainWindow):
         serial_form.addRow('', self.scan_btn)
         serial_box.setLayout(serial_form)
         serial_box.setFixedWidth(self.w/7)
-        serial_box.setFixedHeight(self.h/5)
+        serial_box.setFixedHeight(self.h/4)
 
         # Function Box
         func1 = QCheckBox('Raw Data')
         func1.setObjectName('Raw Data')
-        func1.setChecked(True)
         func2 = QCheckBox('Autocorrelation')
         func2.setObjectName('Autocorrelation')
         func3 = QCheckBox('Heart Beat')
@@ -97,11 +98,12 @@ class MainWindow(QMainWindow):
         function_form.addRow('Samples ',self.samples)
         for f in self.funcList:
             function_form.addRow(f)
+            f.stateChanged.connect(self.function_selection)
 
         function_form.addRow(self.stop_btn,self.run_btn)
         function_box.setLayout(function_form)
         function_box.setFixedWidth(self.w/7)
-        function_box.setFixedHeight(self.h*2/5)
+        function_box.setFixedHeight(self.h*2/4)
 
         # Channel Box
         channel_box = QGroupBox('Channel List')
@@ -109,6 +111,8 @@ class MainWindow(QMainWindow):
         self.channel = QFormLayout()
         channel_box.setLayout(self.channel)
         channel_box.setFixedWidth(self.w/7)
+        channel_box.setFixedHeight(self.h/4)
+
 
         vertical_menu.addWidget(serial_box)
         vertical_menu.addWidget(function_box)
@@ -119,10 +123,25 @@ class MainWindow(QMainWindow):
         self.graph_display.setAlignment(Qt.AlignTop)
         self.graph_display.SetFixedSize
 
+        # Statistic box
+        statistic = QVBoxLayout()
+        statistic.setAlignment(Qt.AlignRight)
+        statistic.SetFixedSize
+
+        stat_box = QGroupBox('Plot Information')
+        stat_box.setStyleSheet('font-size: 12pt; color: 606060;')
+        stat_form = QFormLayout()
+        stat_form.addRow('Period', self.period)
+        stat_form.addRow('Peak value', self.peak)
+        stat_box.setLayout(stat_form)
+        stat_box.setFixedWidth(self.w/7)
+        stat_box.setFixedHeight(self.h)
+
+        statistic.addWidget(stat_box)
+
         self.windowLayout.addLayout(vertical_menu)
         self.windowLayout.addLayout(self.graph_display)
-
-        self.windowLayout.addStretch()
+        self.windowLayout.addLayout(statistic)
 
         # Get all the serial port available
         for prt in self.pmanager.get_port():
@@ -148,7 +167,7 @@ class MainWindow(QMainWindow):
             pass
 
     def get_available_port(self):
-        plist = self.pmanager.get_port()
+        plist = self.scan.scan_serial_port()
         self.ports_list.clear()
         if len(plist) == 0:
             self.alert('Cannot find the serial port')
@@ -156,11 +175,14 @@ class MainWindow(QMainWindow):
             for p in plist:
                 self.ports_list.addItem(p)
 
-    def port_selection(self, currPort):
-        self.clear_clist()
+    # List the channels read from serial port
+    def selectionChange(self, currPort):
+        if self.clist:
+            self.clear_clist()
         self.pmanager.setup_serial(self.samples.text(),self.baudrate.text(),currPort)
         if not self.scan.open_port(currPort,self.baudrate.text()):
-            self.alert('Cannot find a serial port!')
+            # self.alert('Cannot find a serial port!'
+            pass
         else:
             line = self.scan.line
             if line != 0:
@@ -190,17 +212,19 @@ class MainWindow(QMainWindow):
             row_count -= 1
 
     def run_plot(self):
+        # Start plotting
+        if not self.pmanager.is_running():
+            self.pmanager.start()
+
+    def function_selection(self):
         for f in self.funcList:
                 funcName = f.objectName()
                 if f.isChecked() and funcName not in self.plotDictionary.keys():
-                    plot_widget = GraphUI(self.w*6/7).addgraph(funcName)
+                    plot_widget = GraphUI(self.w*5/7).addgraph(funcName)
                     self.graph_display.addWidget(plot_widget,self.plot_count, 0, Qt.AlignLeft)
                     self.plotDictionary.update({funcName: plot_widget})
                     self.pmanager.update_plotDict(self.plotDictionary)
                     self.plot_count +=1
-        # Start plotting
-        if not self.pmanager.is_running():
-            self.pmanager.start()
 
     def channel_display(self):
         if self.clist:

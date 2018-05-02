@@ -5,6 +5,30 @@ class SerialScan:
     def __init__(self):
         self.line = 0
         self.ser = None
+        self.os = self.get_os_type()
+
+    @staticmethod
+    def get_os_type():
+        os_name = platform.platform()
+        if 'Darwin' in os_name:
+            os_type = 0
+        elif 'Window' in os_name:
+            os_type = 1
+        elif 'Linux' in os_name:
+            os_type = 2
+        else:
+            os_type = 4
+        return os_type
+
+    # Scan available serial port
+    def scan_serial_port(self):
+        ports_available = []
+        if self.os == 0:
+            return glob.glob('/dev/tty.*')
+        else:
+            for p in list(list_ports.comports()):
+                ports_available.append(p.device)
+            return ports_available
 
     def open_port(self, port, brate):
         try:

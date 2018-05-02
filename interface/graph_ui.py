@@ -20,7 +20,6 @@ class GraphUI(QDialog):
         self.plot.setAntialiasing(True)
         self.plot.setMinimumWidth(self.w-50)
         self.plot.plotItem.showGrid(True, True, 1)
-
         return self.plot
 
     def make_connection(self, _object_):

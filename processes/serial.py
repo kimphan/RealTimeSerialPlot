@@ -24,8 +24,8 @@ class SerialStream(mp.Process):
         self._parser = prser
         self._exit = mp.Event()
         self._serial = serial.Serial()
-        self._os = self.get_os_type()
-        self.port_available = self.scan_serial_port(self._os)
+        self._scan = SerialScan()
+        self.port_available = self._scan.scan_serial_port()
 
     def _is_ports_available(self, port):
         for p in self.port_available:
@@ -67,28 +67,28 @@ class SerialStream(mp.Process):
             self._parser.add([time()-t, line])
         self._serial.close()
 
-    @staticmethod
-    def get_os_type():
-        os_name = platform.platform()
-        if 'Darwin' in os_name:
-            os_type = 0
-        elif 'Window' in os_name:
-            os_type = 1
-        elif 'Linux' in os_name:
-            os_type = 2
-        else:
-            os_type = 4
-        return os_type
-
-    # Scan available serial port
-    def scan_serial_port(self, os):
-        ports_available = []
-        if os == 0:
-            return glob.glob('/dev/tty.*')
-        else:
-            for p in list(list_ports.comports()):
-                ports_available.append(p.device)
-            return ports_available
+    # @staticmethod
+    # def get_os_type():
+    #     os_name = platform.platform()
+    #     if 'Darwin' in os_name:
+    #         os_type = 0
+    #     elif 'Window' in os_name:
+    #         os_type = 1
+    #     elif 'Linux' in os_name:
+    #         os_type = 2
+    #     else:
+    #         os_type = 4
+    #     return os_type
+    #
+    # # Scan available serial port
+    # def scan_serial_port(self, os):
+    #     ports_available = []
+    #     if os == 0:
+    #         return glob.glob('/dev/tty.*')
+    #     else:
+    #         for p in list(list_ports.comports()):
+    #             ports_available.append(p.device)
+    #         return ports_available
 
 
 

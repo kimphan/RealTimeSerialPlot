@@ -8,7 +8,7 @@ PlotManager:
             https://stackoverflow.com/questions/20110590/how-to-calculate-auto-covariance-in-python?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
 """
 import pyqtgraph as pg
-from PyQt5.QtCore import QTimer,pyqtSignal,QObject
+from PyQt5.QtCore import QTimer,QObject
 from manage.worker import Worker
 import numpy as np
 from scipy.signal import correlate,savgol_filter
@@ -48,27 +48,18 @@ class PlotManager(QObject):
     def update_plot(self):
         if self.worker.is_running():
             self.worker.get_plot_value()
+            print(self.worker.get_channel_num())
 
-            # Clear all data before plot
-            # for p in self.plot:
-            #     p.plotItem.clear()
-            #
             for f in self.plotfunc.keys():
                 self.plotfunc[f].plotItem.clear()
-                print(f)
                 if f == 'Raw Data':
-                #     for c in self.clist:
-                #         self.graph(self.plotfunc[f], self.worker.getxbuffer(),self.worker.getybuffer(c),c)
-                # elif f == 'Autocorrelation':
+                    for c in self.clist:
+                        self.graph(self.plotfunc[f], self.worker.getxbuffer(),self.worker.getybuffer(c),c)
+                elif f == 'Autocorrelation':
                     for c in self.clist:
                         x,y = self.autocorrelation_plot(self.worker.getybuffer(c))
                         self.graph(self.plotfunc[f],x,y,c)
 
-            # Individual plot
-            # while c <= widget_num-1:
-            #     pen = pg.mkPen(self.color_dict[c-1], width=1, style=None)
-            #     self.plot[c].plotItem.plot(self.worker.getxbuffer(), self.worker.getybuffer(c-1), pen=pen)
-            #     c += 1
         else:
             self.stop()
             print('Manager fail to open port')
@@ -112,14 +103,14 @@ class PlotManager(QObject):
     #  Note: Lag value is an integer denoting how many time steps separate one value form another.
     #        Testing for randomness, need only one value of autocorrelation coefficient using lag k = 0
     def autocorrelation_plot(self,data):
+        n=len(data)
         sgf = savgol_filter(data,polyorder=3,window_length=37) # Filter the raw data
         sig_mean = np.mean(sgf)
         sig_norm = sgf - sig_mean        # Normalize data
         variance = np.sum(sig_norm**2)    # Variance function
-        lags = np.arange(0, len(sig_norm), 1)
         acorr = correlate(sig_norm,sig_norm,'same')/variance
-
-        return lags,acorr.get_all()
+        lags = np.arange(int(n/2)-1,n, 1)
+        return lags,acorr[int(n/2)-1:]
 
 
 
