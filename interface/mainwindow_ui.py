@@ -129,7 +129,6 @@ class MainWindow(QMainWindow):
         self.respRate = QLabel('0')
         self.respRate_variability = QLabel('0')
         self.sleepStage = QLabel('0')
-        self.save_btn = self.button('Save',self.save_data)
 
         statistic = QVBoxLayout()
         statistic.setAlignment(Qt.AlignRight)
@@ -142,7 +141,6 @@ class MainWindow(QMainWindow):
         stat_form.addRow('Respiration Rate (RR): ', self.respRate)
         stat_form.addRow('RR Variability: ', self.respRate_variability)
         stat_form.addRow('Sleep Stage: ', self.sleepStage)
-        stat_form.addRow(self.save_btn)
         stat_box.setLayout(stat_form)
         stat_box.setFixedWidth(self.w/7+50)
         stat_box.setFixedHeight(self.h)

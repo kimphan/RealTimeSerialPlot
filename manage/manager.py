@@ -48,8 +48,6 @@ class PlotManager(QObject):
     def update_plot(self):
         if self.worker.is_running():
             self.worker.get_plot_value()
-            print(self.worker.get_channel_num())
-
             for f in self.plotfunc.keys():
                 self.plotfunc[f].plotItem.clear()
                 if f == 'Raw Data':
