@@ -71,6 +71,11 @@ class PlotManager(QObject):
         self.plotfunc = pf
         print('Manager update')
 
+    def update_samples(self,s):
+        self.samples = int(s)
+        if self.is_running():
+            self.stop()
+        self.start()
 
     def add_channel(self,c):
         if c not in self.clist:

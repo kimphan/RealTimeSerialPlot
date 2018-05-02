@@ -27,6 +27,7 @@ class MainWindow(QMainWindow):
         self.plot_count = 0
         self.add = 0
         self.splot_count = 0
+        self.new_samples = ''
         self.addtopbottom = False
         self.scan = SerialScan()
         self.clist = [] # Channel list
@@ -55,6 +56,8 @@ class MainWindow(QMainWindow):
         self.baudrate.setText('115200')
         self.samples = QLineEdit()
         self.samples.setText('100')
+        self.samples.setEnabled(True)
+        self.samples.keyPressEvent = self.keyPressEvent
         self.scan_btn = self.button('Scan Port',self.get_available_port)
         self.run_btn = self.button('Run',self.run_plot)
         self.stop_btn = self.button('Stop',self.serial_stop)
@@ -253,6 +256,17 @@ class MainWindow(QMainWindow):
         pass
 
     # User's event handler
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Return:
+            self.pmanager.update_samples(self.new_samples)
+            self.new_samples = ''
+        elif event.key() == Qt.Key_Backspace:
+            self.samples.clear()
+        else:
+            if event.text().isdigit():
+                self.new_samples += event.text()
+                self.samples.setText(self.new_samples)
+
     def closeEvent(self, event):
         if self.pmanager.is_running():
             self.pmanager.stop()
