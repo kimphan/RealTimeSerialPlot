@@ -10,13 +10,12 @@ import numpy as np
 from scipy.signal import correlate,savgol_filter
 from processes.parser import *
 from helper.ringBuffer import *
-# from processes.simulator import *
 from processes.serial import *
 
 
 class Worker:
 
-    def __init__(self, samples=500, rate=0.02, port=None):
+    def __init__(self,samples=500, rate=0.02, port=None):
         self._samples = samples
         self._rate = rate
         self._port = port
@@ -30,15 +29,17 @@ class Worker:
         self._ybuffer = None
         self.plist = None
 
+        self._parser = Parser(data=self._queue,samples=self._samples)
+        self._process = SerialStream(self._parser)
+
 
     def start(self):
         # Reset and Initialize buffers data
         self._xbuffer, self._ybuffer, self._queue = self.clear_queue(self._samples,self._queue)
         self.plist = []
-        self._parser = Parser(data=self._queue,
-                              samples=self._samples,
-                              rate=self._rate)
-        self._process = Serial(self._parser)
+        # self._parser = Parser(data=self._queue,
+        #                       samples=self._samples)
+        # self._process = Serial(self._parser)
         if self._process.check_init(port=self._port, speed=self._rate):
             self._parser.start()
             self._process.start()
@@ -90,7 +91,10 @@ class Worker:
         return self._ybuffer[i].get_all()
 
     def is_running(self):
-        return self._process is not None and self._process.is_alive()
+        return self._process.is_alive()
+
+    def get_port(self):
+        return self._process.port_available
 
     @staticmethod
     def clear_queue(s,q):

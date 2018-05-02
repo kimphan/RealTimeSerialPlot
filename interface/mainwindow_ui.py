@@ -27,18 +27,17 @@ class MainWindow(QMainWindow):
         self.plot_count = 0
         self.add = 0
         self.splot_count = 0
-        self.splot = -1
         self.addtopbottom = False
+        self.isReady = False
         self.scan = SerialScan()
         self.clist = [] # Channel list
         self.funcList = []  # Function list
         self.plotDictionary = dict() # Plot widget
-        self.isReady = False
+
+        self.pmanager = PlotManager()
 
         self.store_graph = dict()
-        self.store_plot = dict()
         self.store_subplot = dict()
-
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
@@ -47,6 +46,7 @@ class MainWindow(QMainWindow):
         self.central_widget.setLayout(self.windowLayout)
         self.loadui()
 
+
     # Setup UI for main window
     def loadui(self):
         # Widgets
@@ -54,12 +54,11 @@ class MainWindow(QMainWindow):
         self.ports_list.currentTextChanged.connect(self.port_selection)
         self.baudrate = QLineEdit()
         self.baudrate.setText('115200')
+        self.samples = QLineEdit()
+        self.samples.setText('100')
         self.scan_btn = self.button('Scan Port',self.get_available_port)
-        self.show_btn = self.button('Show',self.show_plot)
+        self.run_btn = self.button('Run',self.run_plot)
         self.stop_btn = self.button('Stop',self.serial_stop)
-
-        # Get available serial port
-        # self.get_available_port()
 
         vertical_menu = QVBoxLayout()
         vertical_menu.setAlignment(Qt.AlignLeft)
@@ -67,7 +66,7 @@ class MainWindow(QMainWindow):
 
         buttonLayout = QHBoxLayout()
         buttonLayout.addWidget(self.stop_btn)
-        buttonLayout.addWidget(self.show_btn)
+        buttonLayout.addWidget(self.run_btn)
 
         # Serial Setup Box
         serial_box = QGroupBox('Serial Setup')
@@ -75,7 +74,7 @@ class MainWindow(QMainWindow):
         serial_form = QFormLayout()
         serial_form.addRow('Port',self.ports_list)
         serial_form.addRow('Baudrate',self.baudrate)
-        serial_form.addRow('',self.scan_btn)
+        serial_form.addRow('', self.scan_btn)
         serial_box.setLayout(serial_form)
         serial_box.setFixedWidth(self.w/7)
         serial_box.setFixedHeight(self.h/5)
@@ -95,10 +94,11 @@ class MainWindow(QMainWindow):
         function_box = QGroupBox('Function')
         function_box.setStyleSheet('font-size: 12pt; color: 606060;')
         function_form = QFormLayout()
+        function_form.addRow('Samples ',self.samples)
         for f in self.funcList:
             function_form.addRow(f)
 
-        function_form.addRow(self.stop_btn,self.show_btn)
+        function_form.addRow(self.stop_btn,self.run_btn)
         function_box.setLayout(function_form)
         function_box.setFixedWidth(self.w/7)
         function_box.setFixedHeight(self.h*2/5)
@@ -124,6 +124,10 @@ class MainWindow(QMainWindow):
 
         self.windowLayout.addStretch()
 
+        # Get all the serial port available
+        for prt in self.pmanager.get_port():
+            self.ports_list.addItem(prt)
+
     # Put the application window in the center of the screen
     def center(self):
         frame = self.frameGeometry()  # specifying geometry of the main window with a rectangle 'qr'
@@ -144,7 +148,7 @@ class MainWindow(QMainWindow):
             pass
 
     def get_available_port(self):
-        plist = self.scan.scan_serial_port()
+        plist = self.pmanager.get_port()
         self.ports_list.clear()
         if len(plist) == 0:
             self.alert('Cannot find the serial port')
@@ -154,6 +158,7 @@ class MainWindow(QMainWindow):
 
     def port_selection(self, currPort):
         self.clear_clist()
+        self.pmanager.setup_serial(self.samples.text(),self.baudrate.text(),currPort)
         if not self.scan.open_port(currPort,self.baudrate.text()):
             self.alert('Cannot find a serial port!')
         else:
@@ -164,11 +169,15 @@ class MainWindow(QMainWindow):
                     entry = QCheckBox('Channel '+str(c))
                     entry.setObjectName(str(c))
                     entry.setChecked(True)
+                    entry.stateChanged.connect(self.channel_display)
                     self.clist.append(entry)
                     self.channel.addRow(entry)
-            self.isReady = True
+                    self.pmanager.add_channel(c)
+
 
     def serial_stop(self):
+        if self.pmanager.is_running():
+            self.pmanager.stop()
         print('Stop serial port.')
 
     def clear_clist(self):
@@ -180,23 +189,29 @@ class MainWindow(QMainWindow):
             self.channel.removeRow(row_count)
             row_count -= 1
 
-    def show_plot(self):
-        if self.isReady:
-            for f in self.funcList:
+    def run_plot(self):
+        for f in self.funcList:
                 funcName = f.objectName()
                 if f.isChecked() and funcName not in self.plotDictionary.keys():
                     plot_widget = GraphUI(self.w*6/7).addgraph(funcName)
                     self.graph_display.addWidget(plot_widget,self.plot_count, 0, Qt.AlignLeft)
-                    self.plotDictionary.update({funcName:plot_widget})
+                    self.plotDictionary.update({funcName: plot_widget})
+                    self.pmanager.update_plotDict(self.plotDictionary)
                     self.plot_count +=1
-
-        else:
-            self.alert('Serial port is not selected! Please select a port!')
-
+        # Start plotting
+        if not self.pmanager.is_running():
+            self.pmanager.start()
 
     def channel_display(self):
-        display = []
-        for c in self.clist:
-            if c.isChecked():
-                display.append(c.objectName())
-        return display
+        if self.clist:
+            for c in self.clist:
+                if c.isChecked():
+                    self.pmanager.add_channel(int(c.objectName()))
+                else:
+                    self.pmanager.remove_channel(int(c.objectName()))
+
+
+    def closeEvent(self, event):
+        if self.pmanager.is_running():
+            self.pmanager.stop()
+        super(MainWindow, self).closeEvent(event)

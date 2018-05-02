@@ -12,11 +12,10 @@ import multiprocessing as mp
 
 class Parser(mp.Process):
 
-    def __init__(self, data, samples, rate):
+    def __init__(self, data, samples):
         mp.Process.__init__(self)
         self._importQ = mp.Queue()
         self._sample = samples
-        self._rate = rate
         self._exportQ = data
         self.count = 0
         self._exit = mp.Event()
