@@ -1,23 +1,19 @@
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from interface.graph_ui import GraphUI
+from interface.log_ui import LogUI
 from manage.manager import PlotManager
 from helper.serial_scanner import SerialScan
-from processes.serial import SerialStream
-from functools import partial
-import os, signal,serial
 
 
 class MainWindow(QMainWindow):
     LABELFONT = 15
-    add_button = pyqtSignal('QGridLayout', int, int, int, str, str, str, int)
 
     def __init__(self):
         super(MainWindow, self).__init__()
-        self.w = 1300
-        self.h = 700
-        self.setMinimumHeight(self.h+100)
+        self.w = 1400
+        self.h = 800
+        self.setMinimumHeight(self.h)
         self.setMinimumWidth(self.w)
         self.center()
         self.statusBar().showMessage('Ready')
@@ -29,6 +25,7 @@ class MainWindow(QMainWindow):
         self.splot_count = 0
         self.new_samples = ''
         self.addtopbottom = False
+        self.portAvailable = False
         self.scan = SerialScan()
         self.clist = [] # Channel list
         self.funcList = []  # Function list
@@ -46,12 +43,14 @@ class MainWindow(QMainWindow):
         self.central_widget.setLayout(self.windowLayout)
         self.loadui()
 
+        self.log_dialog = LogUI()
+
 
     # Setup UI for main window
     def loadui(self):
         # Widgets
         self.ports_list = QComboBox()
-        self.ports_list.currentTextChanged.connect(self.selectionChange)
+        self.ports_list.currentTextChanged.connect(self.selection_change)
         self.baudrate = QLineEdit()
         self.baudrate.setText('115200')
         self.samples = QLineEdit()
@@ -60,16 +59,21 @@ class MainWindow(QMainWindow):
         self.samples.keyPressEvent = self.keyPressEvent
         self.scan_btn = self.button('Scan Port',self.get_available_port)
         self.run_btn = self.button('Run',self.run_plot)
-        self.stop_btn = self.button('Stop',self.serial_stop)
+        self.stop_btn = self.button('Stop',self.stop_plot)
+        self.log_checkbox = QCheckBox('Log')
+        self.log_checkbox.stateChanged.connect(self.log_state)
 
-
-        vertical_menu = QVBoxLayout()
-        vertical_menu.setAlignment(Qt.AlignLeft)
-        vertical_menu.SetFixedSize
+        sample_layout = QHBoxLayout()
+        sample_layout.addWidget(self.samples)
+        sample_layout.addWidget(self.log_checkbox)
 
         buttonLayout = QHBoxLayout()
         buttonLayout.addWidget(self.stop_btn)
         buttonLayout.addWidget(self.run_btn)
+
+        vertical_menu = QVBoxLayout()
+        vertical_menu.setAlignment(Qt.AlignLeft)
+        vertical_menu.SetFixedSize
 
         # Serial Setup Box
         serial_box = QGroupBox('Serial Setup')
@@ -79,40 +83,42 @@ class MainWindow(QMainWindow):
         serial_form.addRow('Baudrate',self.baudrate)
         serial_form.addRow('', self.scan_btn)
         serial_box.setLayout(serial_form)
-        serial_box.setFixedWidth(self.w/7)
-        serial_box.setFixedHeight(self.h/4)
+        serial_box.setFixedWidth(self.w/6)
+        serial_box.setFixedHeight(self.h/6)
 
         # Function Box
         func1 = QCheckBox('Raw Data')
         func1.setObjectName('Raw Data')
+        self.funcList.append(func1)
+
         func2 = QCheckBox('Autocorrelation')
         func2.setObjectName('Autocorrelation')
+        self.funcList.append(func2)
+
         func3 = QCheckBox('Heart Beat')
         func3.setObjectName('Heart Beat')
-        self.funcList.append(func1)
-        self.funcList.append(func2)
         self.funcList.append(func3)
 
         function_box = QGroupBox('Function')
         function_box.setStyleSheet('font-size: 12pt; color: 606060;')
         function_form = QFormLayout()
-        function_form.addRow('Samples ',self.samples)
+        function_form.addRow('Samples: ',sample_layout)
+
         for f in self.funcList:
             function_form.addRow(f)
             f.stateChanged.connect(self.function_selection)
 
-        function_form.addRow(self.stop_btn,self.run_btn)
+        function_form.addRow('',buttonLayout)
         function_box.setLayout(function_form)
-        function_box.setFixedWidth(self.w/7)
-        function_box.setFixedHeight(self.h*2/4)
+        function_box.setFixedWidth(self.w/6)
+        function_box.setMaximumHeight(self.h*4/6)
 
         # Channel Box
         channel_box = QGroupBox('Channel List')
         channel_box.setStyleSheet('font-size: 12pt; color: 606060;')
         self.channel = QFormLayout()
         channel_box.setLayout(self.channel)
-        channel_box.setFixedWidth(self.w/7)
-        channel_box.setFixedHeight(self.h/4)
+        channel_box.setFixedWidth(self.w/6)
 
 
         vertical_menu.addWidget(serial_box)
@@ -142,15 +148,15 @@ class MainWindow(QMainWindow):
         stat_form.addRow('RR Variability: ', self.respRate_variability)
         stat_form.addRow('Sleep Stage: ', self.sleepStage)
         stat_box.setLayout(stat_form)
-        stat_box.setFixedWidth(self.w/7+50)
+        stat_box.setFixedWidth(self.w/6)
         stat_box.setFixedHeight(self.h)
 
         statistic.addWidget(stat_box)
 
         self.windowLayout.addLayout(vertical_menu)
+        self.windowLayout.addStretch(1)
         self.windowLayout.addLayout(self.graph_display)
-        self.windowLayout.addStretch()
-
+        self.windowLayout.addStretch(1)
         self.windowLayout.addLayout(statistic)
 
         # Get all the serial port available
@@ -176,6 +182,7 @@ class MainWindow(QMainWindow):
         if QMessageBox.Ok:
             pass
 
+
     def get_available_port(self):
         plist = self.scan.scan_serial_port()
         self.ports_list.clear()
@@ -186,16 +193,20 @@ class MainWindow(QMainWindow):
                 self.ports_list.addItem(p)
 
     # List the channels read from serial port
-    def selectionChange(self, currPort):
+    def selection_change(self, currport):
         if self.clist:
             self.clear_clist()
-        self.pmanager.setup_serial(self.samples.text(),self.baudrate.text(),currPort)
-        if not self.scan.open_port(currPort,self.baudrate.text()):
-            # self.alert('Cannot find a serial port!')
-            pass
+        self.pmanager.setup_serial(self.samples.text(), self.baudrate.text(),currport)
+        if not self.scan.open_port(currport,self.baudrate.text()):
+            self.run_btn.setEnabled(False)
+            self.log_checkbox.setCheckable(False)
+            self.portAvailable = False
         else:
             line = self.scan.line
             if line != 0:
+                self.portAvailable = True
+                self.run_btn.setEnabled(True)
+                self.log_checkbox.setCheckable(True)
                 # List all the channels read from serial port
                 for c in range(line):
                     entry = QCheckBox('Channel '+str(c))
@@ -205,13 +216,16 @@ class MainWindow(QMainWindow):
                     self.clist.append(entry)
                     self.channel.addRow(entry)
                     self.pmanager.add_channel(c)
+            else:
+                self.portAvailable = False
+                self.run_btn.setEnabled(False)
+                self.log_checkbox.setCheckable(False)
             self.isClicked = False
 
-
-    def serial_stop(self):
+    def stop_plot(self):
         if self.pmanager.is_running():
             self.pmanager.stop()
-        print('Stop serial port.')
+        self.log_checkbox.setEnabled(True)
 
     def clear_clist(self):
         row_count = self.channel.rowCount()
@@ -224,22 +238,25 @@ class MainWindow(QMainWindow):
 
     def run_plot(self):
         # Start plotting
-        if not self.pmanager.is_running():
-            self.pmanager.start()
+        if self.portAvailable:
+            if not self.pmanager.is_running():
+                self.pmanager.start()
+        else:
+            self.alert('Port is Not available! Please choose another port.')
 
     def function_selection(self):
         for f in self.funcList:
-            funcName = f.objectName()
-            if f.isChecked() and funcName not in self.plotDictionary.keys():
-                plot_widget = GraphUI(self.w*5/7,self.h/3).addgraph(funcName)
+            funcname = f.objectName()
+            if f.isChecked() and funcname not in self.plotDictionary.keys():
+                plot_widget = GraphUI(self.w*5/7,self.h/3).addgraph(funcname)
                 self.graph_display.addWidget(plot_widget,self.plot_count, 0, Qt.AlignLeft)
-                self.plotDictionary.update({funcName: plot_widget})
+                self.plotDictionary.update({funcname: plot_widget})
                 self.pmanager.update_plotDict(self.plotDictionary)
                 self.plot_count +=1
-            elif not f.isChecked() and funcName in self.plotDictionary.keys():
-                self.graph_display.removeWidget(self.plotDictionary[funcName])
-                self.plotDictionary[funcName].deleteLater()
-                del self.plotDictionary[funcName]
+            elif not f.isChecked() and funcname in self.plotDictionary.keys():
+                self.graph_display.removeWidget(self.plotDictionary[funcname])
+                self.plotDictionary[funcname].deleteLater()
+                del self.plotDictionary[funcname]
                 self.pmanager.update_plotDict(self.plotDictionary)
 
     def channel_display(self):
@@ -250,8 +267,18 @@ class MainWindow(QMainWindow):
                 else:
                     self.pmanager.remove_channel(int(c.objectName()))
 
-    def save_data(self):
-        pass
+    def log_state(self):
+        if self.log_checkbox.isChecked():
+            self.statusBar().showMessage('Log Enable')
+            self.log_dialog.showdialog()
+            self.log_dialog.log_signal.connect(self.start_log)
+        else:
+            self.statusBar().showMessage('Log Disable')
+            self.log_dialog.cancel()
+
+    @pyqtSlot(bool,str)
+    def start_log(self,file_ready,filename):
+        self.pmanager.csv_checked(file_ready,filename)
 
     # User's event handler
     def keyPressEvent(self, event):
@@ -259,7 +286,7 @@ class MainWindow(QMainWindow):
             self.pmanager.update_samples(self.new_samples)
             self.new_samples = ''
         elif event.key() == Qt.Key_Backspace:
-            self.samples.clear()
+            self.samples.setText('')
         else:
             if event.text().isdigit():
                 self.new_samples += event.text()
@@ -278,13 +305,12 @@ class MainWindow(QMainWindow):
                 self.w, self.h = screen_resolution.width(), screen_resolution.height()
                 self.resize_plot(self.w*5/7-100,self.h/3)
             else:
-                self.h = 700
-                self.w = 1300
+                self.h = 800
+                self.w = 1400
                 self.resize_plot(self.w*5/7-100,self.h/3)
-
         super(MainWindow,self).changeEvent(event)
 
     def resize_plot(self,w,h):
         for k in self.plotDictionary.keys():
-            self.plotDictionary[k].setFixedWidth(w)
-            self.plotDictionary[k].setFixedHeight(h)
+            self.plotDictionary[k].setMinimumWidth(w)
+            self.plotDictionary[k].setMaximumHeight(h)

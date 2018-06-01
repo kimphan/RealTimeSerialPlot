@@ -14,8 +14,8 @@ class GraphUI(QDialog):
         self.plot.setLabel('top',funcName)
         self.plot.setAntialiasing(True)
         self.plot.plotItem.showGrid(True, True, 1)
-        self.plot.setFixedWidth(self.w-100)
-        self.plot.setFixedHeight(self.h)
+        self.plot.setMinimumWidth(self.w-100)
+        self.plot.setMaximumHeight(self.h)
         return self.plot
     def make_connection(self, _object_):
         # _object_.add_button.connect(self.display)
