@@ -7,13 +7,10 @@ Real-Time Graph: local process
     Credit for:
         https://github.com/ssepulveda/RTGraph
 """
-import platform, glob
 import multiprocessing as mp
-import serial
 from helper.serial_scanner import SerialScan
 from time import time
-import glob, platform, serial
-from serial.tools import list_ports
+import serial
 
 
 class SerialStream(mp.Process):
