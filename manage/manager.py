@@ -12,9 +12,11 @@ import os,csv
 from PyQt5.QtCore import QTimer,QObject
 from manage.worker import Worker
 from helper.function import Function
+from helper.fileManager import FileManager
 
 
 class PlotManager(QObject):
+    path = '..\\SerialPlot\\data'
     def __init__(self,samples=500, rate=0.02, port=None):
         super(PlotManager,self).__init__()
         # mp.Process.__init__(self)
@@ -28,10 +30,16 @@ class PlotManager(QObject):
         self.configure_timers()
         self.color_dict = ({0:'#6c6d70',1:'#EB340D',2:'#0D46EB', 3:'#d01bd3', 4:'#ed9615', 5: '#298909'})
         self.line = 0
-        self.fieldname = ['time']
+
+        # Log
+        self.directory = FileManager()
+        self.csvfile = None
+        self.mywriter = None
+        self.fieldnames = []
         self.filename = ''
-        self.y = dict()
+        self.data = dict()
         self.logenable= False
+        self.writeheader = False
 
     def start(self):
         self.worker = Worker(samples=self.samples,rate=self.rate,port=self.port)
@@ -53,17 +61,51 @@ class PlotManager(QObject):
     def update_plot(self):
         if self.worker.is_running():
             self.worker.get_plot_value()
+            self.data.clear()
             for f in self.plotfunc.keys():
                 self.plotfunc[f].plotItem.clear()
                 if f == 'Raw Data':
                     for c in self.clist:
                         self.graph(self.plotfunc[f], self.worker.getxbuffer(),self.worker.getybuffer(c),c)
+                        self.data[c, f] = self.worker.getybuffer(c)
+
                 elif f == 'Autocorrelation':
                     for c in self.clist:
                         x,y = self.computation.autocorrelation_plot(self.worker.getybuffer(c))
                         self.graph(self.plotfunc[f],x,y,c)
-                if self.logenable:
-                    self.create_file(self.filename)
+                        self.data[c, f] = y
+
+            if self.logenable:
+                # Header for log file
+                if self.writeheader:
+                    self.mywriter.writerow(self.fieldnames)
+                    self.writeheader = False
+                # Data
+                processed_data = []
+                result = []
+
+                # for k in self.data.keys():
+                #     field = 1
+                #     while(field <= 2):
+                #         for i in self.data[k]:
+                #             if i != 0.0:
+                #                 processed_data.clear()
+                #                 processed_data.append(k[0])
+                #                 processed_data.append(i)
+                #                 self.mywriter.writerow(processed_data)
+
+                for c in self.clist:
+                    field = 1
+                    for d in self.data[c,self.fieldnames[field]]:
+                        while field < len(self.fieldnames):
+                            if d != 0.0:
+                                processed_data.clear()
+                                processed_data.append(c)
+                                processed_data.append(d)
+                            field += 1
+                        if len(processed_data) != 0:
+                            self.mywriter.writerow(processed_data)
+
 
         else:
             self.stop()
@@ -74,7 +116,12 @@ class PlotManager(QObject):
 
     def update_plotDict(self,pf):
         self.plotfunc = pf
-        print('Manager update')
+        self.fieldnames.clear()
+        self.fieldnames.append('Channel')
+        for header in pf.keys():
+            self.fieldnames.append(header)
+        self.writeheader = True
+
 
     def update_samples(self,s):
         self.samples = int(s)
@@ -103,15 +150,12 @@ class PlotManager(QObject):
     def csv_checked(self, fileready, fname):
         self.logenable = fileready
         self.filename = fname
-
-    @staticmethod
-    def create_file(filename):
-        save_path = '..\\SerialPlot\\data'
-        with open(os.path.join(save_path, filename+'.csv'),'a') as f:
-            print(filename)
-            writer = csv.writer(f)
-            writer.writerow(['test','test23'])
-
+        if fileready:
+            self.csvfile = self.directory.create_file(self.path,fname)
+            self.mywriter = csv.writer(self.csvfile,delimiter=',')
+        else:
+            if self.directory.check_path(os.path.join(self.path,fname+'.csv')):
+                self.csvfile.close()
 
     def count_channel(self):
         return self.worker.get_channel_num()
