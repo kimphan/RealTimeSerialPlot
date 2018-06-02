@@ -35,7 +35,7 @@ class PlotManager(QObject):
         self.directory = FileManager()
         self.csvfile = None
         self.mywriter = None
-        self.fieldnames = []
+        self.fieldnames = ['Channel']
         self.filename = ''
         self.data = dict()
         self.logenable= False
@@ -62,6 +62,7 @@ class PlotManager(QObject):
         if self.worker.is_running():
             self.worker.get_plot_value()
             self.data.clear()
+            size = self.samples/2
             for f in self.plotfunc.keys():
                 self.plotfunc[f].plotItem.clear()
                 if f == 'Raw Data':
@@ -82,30 +83,18 @@ class PlotManager(QObject):
                     self.writeheader = False
                 # Data
                 processed_data = []
-                result = []
-
-                # for k in self.data.keys():
-                #     field = 1
-                #     while(field <= 2):
-                #         for i in self.data[k]:
-                #             if i != 0.0:
-                #                 processed_data.clear()
-                #                 processed_data.append(k[0])
-                #                 processed_data.append(i)
-                #                 self.mywriter.writerow(processed_data)
-
                 for c in self.clist:
-                    field = 1
-                    for d in self.data[c,self.fieldnames[field]]:
+                    d = 0
+                    while d < size:
+                        field = 1
+                        processed_data.clear()
+                        processed_data.append(c)
                         while field < len(self.fieldnames):
-                            if d != 0.0:
-                                processed_data.clear()
-                                processed_data.append(c)
-                                processed_data.append(d)
+                            processed_data.append(self.data[(c,self.fieldnames[field])][d])
                             field += 1
-                        if len(processed_data) != 0:
+                        if len(processed_data) > 1:
                             self.mywriter.writerow(processed_data)
-
+                        d += 1
 
         else:
             self.stop()
