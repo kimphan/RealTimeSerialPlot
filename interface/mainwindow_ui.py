@@ -52,20 +52,21 @@ class MainWindow(QMainWindow):
         self.ports_list = QComboBox()
         self.ports_list.currentTextChanged.connect(self.selection_change)
         self.baudrate = QLineEdit()
-        self.baudrate.setText('115200')
+        self.baudrate.setText('9600')
+        self.baudrate.setEnabled(True)
         self.samples = QLineEdit()
-        self.samples.setText('100')
+        self.samples.setText('10000')
         self.samples.setEnabled(True)
         self.samples.keyPressEvent = self.keyPressEvent
         self.scan_btn = self.button('Scan Port',self.get_available_port)
         self.run_btn = self.button('Run',self.run_plot)
         self.stop_btn = self.button('Stop',self.stop_plot)
-        self.log_checkbox = QCheckBox('Log')
-        self.log_checkbox.stateChanged.connect(self.log_state)
+        # self.log_checkbox = QCheckBox('Log')
+        # self.log_checkbox.stateChanged.connect(self.log_state)
 
         sample_layout = QHBoxLayout()
         sample_layout.addWidget(self.samples)
-        sample_layout.addWidget(self.log_checkbox)
+        # sample_layout.addWidget(self.log_checkbox)
 
         buttonLayout = QHBoxLayout()
         buttonLayout.addWidget(self.stop_btn)
@@ -119,7 +120,6 @@ class MainWindow(QMainWindow):
         self.channel = QFormLayout()
         channel_box.setLayout(self.channel)
         channel_box.setFixedWidth(self.w/6)
-
 
         vertical_menu.addWidget(serial_box)
         vertical_menu.addWidget(function_box)
@@ -182,7 +182,6 @@ class MainWindow(QMainWindow):
         if QMessageBox.Ok:
             pass
 
-
     def get_available_port(self):
         plist = self.scan.scan_serial_port()
         self.ports_list.clear()
@@ -194,33 +193,34 @@ class MainWindow(QMainWindow):
 
     # List the channels read from serial port
     def selection_change(self, currport):
-        if self.clist:
-            self.clear_clist()
-        self.pmanager.setup_serial(self.samples.text(), self.baudrate.text(),currport)
-        if not self.scan.open_port(currport,self.baudrate.text()):
-            self.run_btn.setEnabled(False)
-            self.log_checkbox.setCheckable(False)
-            self.portAvailable = False
-        else:
-            line = self.scan.line
-            if line != 0:
-                self.portAvailable = True
-                self.run_btn.setEnabled(True)
-                self.log_checkbox.setCheckable(True)
-                # List all the channels read from serial port
-                for c in range(line):
-                    entry = QCheckBox('Channel '+str(c))
-                    entry.setObjectName(str(c))
-                    entry.setChecked(True)
-                    entry.stateChanged.connect(self.channel_display)
-                    self.clist.append(entry)
-                    self.channel.addRow(entry)
-                    self.pmanager.add_channel(c)
-            else:
-                self.portAvailable = False
+        if '1' not in currport:
+            if self.clist:
+                self.clear_clist()
+            self.pmanager.setup_serial(self.samples.text(), self.baudrate.text(),currport)
+            if not self.scan.open_port(currport,self.baudrate.text()):
                 self.run_btn.setEnabled(False)
-                self.log_checkbox.setCheckable(False)
-            self.isClicked = False
+                # self.log_checkbox.setCheckable(False)
+                self.portAvailable = False
+            else:
+                line = self.scan.line
+                if line != 0:
+                    self.portAvailable = True
+                    self.run_btn.setEnabled(True)
+                    # self.log_checkbox.setCheckable(True)
+                    # List all the channels read from serial port
+                    for c in range(line):
+                        entry = QCheckBox('Channel '+str(c))
+                        entry.setObjectName(str(c))
+                        entry.setChecked(True)
+                        entry.stateChanged.connect(self.channel_display)
+                        self.clist.append(entry)
+                        self.channel.addRow(entry)
+                        self.pmanager.add_channel(c)
+                else:
+                    self.portAvailable = False
+                    self.run_btn.setEnabled(False)
+                    # self.log_checkbox.setCheckable(False)
+                # self.isClicked = False
 
     def stop_plot(self):
         if self.pmanager.is_running():
@@ -267,18 +267,18 @@ class MainWindow(QMainWindow):
                 else:
                     self.pmanager.remove_channel(int(c.objectName()))
 
-    def log_state(self):
-        if self.log_checkbox.isChecked():
-            self.statusBar().showMessage('Log Enable')
-            self.log_dialog.showdialog()
-            self.log_dialog.log_signal.connect(self.start_log)
-        else:
-            self.statusBar().showMessage('Log Disable')
-            self.log_dialog.cancel()
-
-    @pyqtSlot(bool,str)
-    def start_log(self,file_ready,filename):
-        self.pmanager.csv_checked(file_ready,filename)
+    # def log_state(self):
+    #     if self.log_checkbox.isChecked():
+    #         self.statusBar().showMessage('Log Enable')
+    #         self.log_dialog.showdialog()
+    #         self.log_dialog.log_signal.connect(self.start_log)
+    #     else:
+    #         self.statusBar().showMessage('Log Disable')
+    #         self.log_dialog.cancel()
+    #
+    # @pyqtSlot(bool,str)
+    # def start_log(self,file_ready,filename):
+    #     self.pmanager.csv_checked(file_ready,filename)
 
     # User's event handler
     def keyPressEvent(self, event):

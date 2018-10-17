@@ -61,6 +61,7 @@ class SerialStream(mp.Process):
         t = time()
         while not self._exit.is_set():
             line = self._serial.readline()
+            print(line)
             self._parser.add([time()-t, line])
         self._serial.close()
 

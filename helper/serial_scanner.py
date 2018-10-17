@@ -37,6 +37,7 @@ class SerialScan:
                 self.ser.open()
             else:
                 line = self.ser.readline()
+                print(line)
                 values = line.decode("UTF-8").split(',')
                 for v in values:
                     if v != '':

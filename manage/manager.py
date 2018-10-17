@@ -38,7 +38,7 @@ class PlotManager(QObject):
         self.fieldnames = ['Channel']
         self.filename = ''
         self.data = dict()
-        self.logenable= False
+        # self.logenable= False
         self.writeheader = False
 
     def start(self):
@@ -76,25 +76,25 @@ class PlotManager(QObject):
                         self.graph(self.plotfunc[f],x,y,c)
                         self.data[c, f] = y
 
-            if self.logenable:
-                # Header for log file
-                if self.writeheader:
-                    self.mywriter.writerow(self.fieldnames)
-                    self.writeheader = False
-                # Data
-                processed_data = []
-                for c in self.clist:
-                    d = 0
-                    while d < size:
-                        field = 1
-                        processed_data.clear()
-                        processed_data.append(c)
-                        while field < len(self.fieldnames):
-                            processed_data.append(self.data[(c,self.fieldnames[field])][d])
-                            field += 1
-                        if len(processed_data) > 1:
-                            self.mywriter.writerow(processed_data)
-                        d += 1
+            # if self.logenable:
+            #     # Header for log file
+            #     if self.writeheader:
+            #         self.mywriter.writerow(self.fieldnames)
+            #         self.writeheader = False
+            #     # Data
+            #     processed_data = []
+            #     for c in self.clist:
+            #         d = 0
+            #         while d < size:
+            #             field = 1
+            #             processed_data.clear()
+            #             processed_data.append(c)
+            #             while field < len(self.fieldnames):
+            #                 processed_data.append(self.data[(c,self.fieldnames[field])][d])
+            #                 field += 1
+            #             if len(processed_data) > 1:
+            #                 self.mywriter.writerow(processed_data)
+            #             d += 1
 
         else:
             self.stop()
@@ -110,7 +110,6 @@ class PlotManager(QObject):
         for header in pf.keys():
             self.fieldnames.append(header)
         self.writeheader = True
-
 
     def update_samples(self,s):
         self.samples = int(s)

@@ -103,7 +103,6 @@ class Worker:
         i = 0
         while i < 6:
             y.append(RingBuffer(s))
-
             i += 1
         while not q.empty():
             q.get()
