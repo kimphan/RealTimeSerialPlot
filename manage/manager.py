@@ -112,10 +112,11 @@ class PlotManager(QObject):
         self.writeheader = True
 
     def update_samples(self,s):
+        # if self.is_running():
+        #     self.stop()
         self.samples = int(s)
-        if self.is_running():
-            self.stop()
-        self.start()
+        print (self.samples)
+        # self.start()
 
     def add_channel(self,c):
         if c not in self.clist:

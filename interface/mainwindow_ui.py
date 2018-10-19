@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
         self.samples.setText('10000')
         self.samples.setEnabled(True)
         self.samples.keyPressEvent = self.keyPressEvent
+
         self.scan_btn = self.button('Scan Port',self.get_available_port)
         self.run_btn = self.button('Run',self.run_plot)
         self.stop_btn = self.button('Stop',self.stop_plot)
@@ -225,7 +226,7 @@ class MainWindow(QMainWindow):
     def stop_plot(self):
         if self.pmanager.is_running():
             self.pmanager.stop()
-        self.log_checkbox.setEnabled(True)
+        # self.log_checkbox.setEnabled(True)
 
     def clear_clist(self):
         row_count = self.channel.rowCount()
@@ -282,19 +283,18 @@ class MainWindow(QMainWindow):
 
     # User's event handler
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Return:
-            self.pmanager.update_samples(self.new_samples)
-            self.new_samples = ''
+        if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+            self.stop_plot()
+            self.pmanager.update_samples(self.samples.text())
+            self.run_plot()
         elif event.key() == Qt.Key_Backspace:
             self.samples.setText('')
         else:
             if event.text().isdigit():
-                self.new_samples += event.text()
-                self.samples.setText(self.new_samples)
+                self.samples.insert(event.text())
 
     def closeEvent(self, event):
-        if self.pmanager.is_running():
-            self.pmanager.stop()
+        self.stop_plot()
         super(MainWindow, self).closeEvent(event)
 
     def changeEvent(self, event):
